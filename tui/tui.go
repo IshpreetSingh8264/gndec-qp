@@ -171,7 +171,7 @@ func (m model) View() string {
 
 // ─── rendering helpers ────────────────────────────────────
 
-func (m model) innerW() int { return m.width - 4 }
+func (m model) innerW() int { return m.width - 6 }
 
 func (m model) padRow(left, right string) string {
 	w := m.innerW() - 1 // -1 for left padding
@@ -187,11 +187,11 @@ func (m model) padRow(left, right string) string {
 }
 
 func (m model) hlRow(text string) string {
-	return selectedRow.Width(m.innerW()).Render(" " + text)
+	return selectedRow.MaxWidth(m.innerW()).Width(m.innerW()).Render(" " + text)
 }
 
 func (m model) normRow(text string) string {
-	return normalRow.Width(m.innerW()).Render(" " + text)
+	return normalRow.MaxWidth(m.innerW()).Width(m.innerW()).Render(" " + text)
 }
 
 func trunc(s string, maxW int) string {
@@ -209,9 +209,13 @@ func (m *model) setInputWidth() {
 	}
 }
 
-func (m model) footer(lines ...string) string {
+func (m model) footer(status string, keys ...string) string {
+	w := m.innerW() - 2
+	status = trunc(status, w)
+	keyLine := trunc(strings.Join(keys, " · "), w)
 	return "\n" + hLine(m.innerW()) + "\n" +
-		pad1.Render(strings.Join(lines, "  ·  "))
+		pad1.Render(status) + "\n" +
+		pad1.Render(keyLine)
 }
 
 // ─── search view ──────────────────────────────────────────
@@ -274,8 +278,8 @@ func (m model) renderSearch() string {
 		}
 	}
 
-	hlp := fmt.Sprintf("%d matches · ↑↓ navigate", len(m.subjects))
-	f := m.footer(hlp, "enter select", "esc quit")
+	hlp := fmt.Sprintf("%d matches", len(m.subjects))
+	f := m.footer(hlp, "↑↓ navigate", "enter to select", "esc to quit")
 	b.WriteString(f)
 	return borderTop(m.innerW()) + "\n" + m.wrapLines(b.String()) + "\n" + borderBottom(m.innerW())
 }
@@ -320,10 +324,7 @@ func (m model) renderSelect() string {
 		}
 	}
 
-	stats := fmt.Sprintf("%d/%d selected · %d papers on disk", selCount, len(m.selSubject.Papers), selCount)
-	b.WriteString(infoStyle.Render("\n " + stats))
-
-	f := m.footer("↑↓ navigate", "space toggle", "a all/none", "enter download", "esc back")
+	f := m.footer(fmt.Sprintf("%d/%d selected", selCount, len(m.selSubject.Papers)), "↑↓ navigate", "space toggle", "a all/none", "enter to download", "esc back")
 	b.WriteString(f)
 	return borderTop(m.innerW()) + "\n" + m.wrapLines(b.String()) + "\n" + borderBottom(m.innerW())
 }
@@ -373,14 +374,10 @@ func (m model) renderDownload() string {
 	b.WriteString("\n")
 	total := len(m.jobs)
 	if m.finished {
-		b.WriteString(successStyle.Render(fmt.Sprintf(" Done! %d downloaded, %d failed.", doneCount, m.errors)))
-		b.WriteString("\n\n")
-		f := m.footer("esc / q · back")
+		f := m.footer(fmt.Sprintf("%d downloaded, %d failed", doneCount, m.errors), "esc to search", "q to quit")
 		b.WriteString(f)
 	} else {
-		b.WriteString(infoStyle.Render(fmt.Sprintf(" %d/%d complete", doneCount, total)))
-		b.WriteString("\n")
-		f := m.footer("ctrl+c · cancel")
+		f := m.footer(fmt.Sprintf("%d/%d complete", doneCount, total), "ctrl+c to cancel")
 		b.WriteString(f)
 	}
 	return borderTop(m.innerW()) + "\n" + m.wrapLines(b.String()) + "\n" + borderBottom(m.innerW())
