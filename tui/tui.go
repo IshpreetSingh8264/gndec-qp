@@ -231,9 +231,9 @@ func (m model) renderSearch() string {
 	if len(m.subjects) == 0 {
 		b.WriteString(infoStyle.Render("No subjects match."))
 	} else {
-		maxVis := m.height - 12
-		if maxVis < 3 {
-			maxVis = 3
+		maxVis := m.height - 15
+		if maxVis < 1 {
+			maxVis = 1
 		}
 		start := (m.cursor / maxVis) * maxVis
 		if start > len(m.subjects)-maxVis {
@@ -274,7 +274,14 @@ func (m model) renderSearch() string {
 		}
 
 		if len(m.subjects) > maxVis {
-			b.WriteString(infoStyle.Render(fmt.Sprintf("\n %d – %d of %d · ↑↓ scroll", start+1, end, len(m.subjects))))
+			if start > 0 {
+				b.WriteString(infoStyle.Render(" ▲ more above\n"))
+			}
+			b.WriteString(infoStyle.Render(fmt.Sprintf(" %d – %d of %d", start+1, end, len(m.subjects))))
+			if end < len(m.subjects) {
+				b.WriteString(infoStyle.Render(" · ▼ more below"))
+			}
+			b.WriteString("\n")
 		}
 	}
 
@@ -295,7 +302,25 @@ func (m model) renderSelect() string {
 	homeDir, _ := os.UserHomeDir()
 	dlBase := filepathJoin(homeDir, "Downloads", "Question Papers", m.selSubject.Code)
 
-	for i, paper := range m.selSubject.Papers {
+	totalPapers := len(m.selSubject.Papers)
+	maxVis := m.height - 11
+	if maxVis < 1 {
+		maxVis = 1
+	}
+	selStart := (m.detailCursor / maxVis) * maxVis
+	if selStart > totalPapers-maxVis {
+		selStart = totalPapers - maxVis
+	}
+	if selStart < 0 {
+		selStart = 0
+	}
+	selEnd := selStart + maxVis
+	if selEnd > totalPapers {
+		selEnd = totalPapers
+	}
+
+	for i := selStart; i < selEnd; i++ {
+		paper := m.selSubject.Papers[i]
 		prefix := uncheckedBox
 		if m.selected[i] {
 			prefix = checkedBox
@@ -324,7 +349,18 @@ func (m model) renderSelect() string {
 		}
 	}
 
-	f := m.footer(fmt.Sprintf("%d/%d selected", selCount, len(m.selSubject.Papers)), "↑↓ navigate", "space toggle", "a all/none", "enter to download", "esc back")
+	if totalPapers > maxVis {
+		if selStart > 0 {
+			b.WriteString(infoStyle.Render(" ▲ more above\n"))
+		}
+		b.WriteString(infoStyle.Render(fmt.Sprintf(" %d – %d of %d", selStart+1, selEnd, totalPapers)))
+		if selEnd < totalPapers {
+			b.WriteString(infoStyle.Render(" · ▼ more below"))
+		}
+		b.WriteString("\n")
+	}
+
+	f := m.footer(fmt.Sprintf("%d/%d selected", selCount, totalPapers), "↑↓ navigate", "space toggle", "a all/none", "enter to download", "esc back")
 	b.WriteString(f)
 	return borderTop(m.innerW()) + "\n" + m.wrapLines(b.String()) + "\n" + borderBottom(m.innerW())
 }
